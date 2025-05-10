@@ -1,3 +1,4 @@
+### Revised Makefile for Verbose Error Output
 CUDA_PATH       ?= /opt/cuda
 CUTLASS_PATH    ?= $(CURDIR)/cutlass
 
@@ -13,8 +14,11 @@ INCLUDES        := -I$(INC_DIR) \
                    -I$(CUTLASS_PATH)/include \
                    -I$(CUDA_PATH)/include
 
-NVCCFLAGS       := -c -O3 -std=c++17 $(INCLUDES)
-CFLAGS          := -c -O3 -std=c11 $(INCLUDES)
+# Add warnings to catch issues early
+NVCCFLAGS       := -c -O3 -std=c++17 \
+                   -Xcompiler -Wall -Xcompiler -Wextra \
+                   $(INCLUDES)
+CFLAGS          := -c -O3 -std=c11 -Wall -Wextra $(INCLUDES)
 LDFLAGS         := -L$(CUDA_PATH)/lib64 -lcudart -lcublas \
                    -lcudart_static -lcutensor -lopenblas
 
@@ -25,11 +29,10 @@ OBJS            := $(OBJ_DIR)/matmul_bench.o \
                    $(OBJ_DIR)/cutlass_gemm.o
 BIN_TARGET      := $(BIN_DIR)/$(TARGET)
 
-dirs: setup
-	@mkdir -p $(OBJ_DIR) $(BIN_DIR)
+# Enable strict shell options for clearer failures and fail-fast
+.SHELLFLAGS := -e -o pipefail -c
 
-setup:
-	@echo "Building project in $(BIN_DIR)..."
+# Always show all commands (no '@' prefixes)
 
 all: dirs $(BIN_TARGET)
 
@@ -37,15 +40,21 @@ all: dirs $(BIN_TARGET)
 $(BIN_TARGET): $(OBJS)
 	$(CC) $^ -o $@ $(LDFLAGS)
 
-# compile c
+# compile C source
 $(OBJ_DIR)/matmul_bench.o: $(SRCS_C)
+	@echo "Compiling C: $<"
 	$(CC) $(CFLAGS) $< -o $@
 
-# compile cu
+# compile CUDA source
 $(OBJ_DIR)/cutlass_gemm.o: $(SRCS_CU) $(INC_DIR)/cutlass_gemm.h
+	@echo "Compiling CUDA: $<"
 	$(NVCC) $(NVCCFLAGS) $< -o $@
+
+dirs:
+	@echo "Creating directories..."
+	mkdir -p $(OBJ_DIR) $(BIN_DIR)
 
 clean:
 	rm -rf $(OBJ_DIR) $(BIN_DIR)
 
-.PHONY: all clean dirs setup
+.PHONY: all clean dirs
