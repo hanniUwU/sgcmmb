@@ -37,7 +37,7 @@ all: dirs $(BIN_TARGET)
 
 # linking
 $(BIN_TARGET): $(OBJS)
-	$(CC) $^ -o $@ $(LDFLAGS)
+	$(NVCC) $^ -o $@ $(LDFLAGS)
 
 # compile .c
 $(OBJ_DIR)/matmul_bench.o: $(SRCS_C)
@@ -45,7 +45,7 @@ $(OBJ_DIR)/matmul_bench.o: $(SRCS_C)
 	$(CC) $(CFLAGS) $< -o $@
 
 # compile .cu
-$(OBJ_DIR)/cutlass_gemm.o: $(SRCS_CU) $(INC_DIR)/cutlass_gemm.h
+$(OBJ_DIR)/cutlass_sgemm.o: $(SRCS_CU) $(INC_DIR)/cutlass_sgemm.h
 	@echo "Compiling CUDA: $<"
 	$(NVCC) $(NVCCFLAGS) $< -o $@
 

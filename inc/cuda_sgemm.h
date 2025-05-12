@@ -1,9 +1,17 @@
 #ifndef CUDA_SGEMM_H
 #define CUDA_SGEMM_H
 
-#include <cuda_runtime.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-void kernel_sgemm_launch(float* M1_device, float* M2_device, float* M3_device, size_t d1, size_t d2) {
+void kernel_sgemm_launch(float* M1_device, float* M2_device, float* M3_device, size_t d1, size_t d2);
 
-#endif // CUTLASS_GEMM_H
+#ifdef __cplusplus
+}
+#endif
+
+#endif // CUDA_SGEMM_H
+
+
 

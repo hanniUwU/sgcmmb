@@ -1,9 +1,5 @@
+#include <cuda_runtime.h>
 #define BLOCK_SIZE 16
-
-extern "C" {
-	void kernel_sgemm_launch(float* M1_device, float* M2_device, float* M3_device, size_t d1, size_t d2);
-}
-
 __global__ void kernel_sgemm(float* M1_device, float* M2_device, float* M3_device, size_t d1, size_t d2) {
 
 	// each thread computes one element of M3
@@ -17,7 +13,8 @@ __global__ void kernel_sgemm(float* M1_device, float* M2_device, float* M3_devic
 	M3_device[row + col*d1] = M3_value;
 }
 
-void kernel_sgemm_launch(float* M1_device, float* M2_device, float* M3_device, size_t d1, size_t d2) {
+extern "C" void kernel_sgemm_launch(float* M1_device, float* M2_device, float* M3_device, size_t d1, size_t d2) {
+	
 	dim3 block(16, 16);
 	dim3 grid((d1+15)/16, (d2+15)/16);
 	sgemm_kernel<<<grid, block>>>(M1_device, M2_device, M3_device, d1, d2);

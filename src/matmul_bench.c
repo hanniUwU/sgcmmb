@@ -68,7 +68,7 @@ void random_matrix(float* M_host, size_t d1, size_t d2) {
 
 void printM_f(float* M_host, char* desc, size_t d1, size_t d2) {
 
-    printf("\t --- printing %zux%zu Matrix (float) ---\n", d1, d2);
+    printf("\t --- printing %s, %zux%zu Matrix (float) ---\n", desc, d1, d2);
     for (size_t j = 0; j < d2; j++) {
     	for (size_t i = 0; i < d1; i++) {
 	    printf("%8.2f ", M_host[i + j*d1]);
@@ -124,17 +124,31 @@ void matmul_CUDA(float* M1_host, float* M2_host, float* M3_host, size_t d1, size
     CUDA_CHECK(cudaMemcpy(M1_device, M1_host, szA, cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(M2_device, M2_host, szB, cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemset(M3_device, 0, szC));
+    
+    cudaEvent_t start, stop;
+    CUDA_CHECK(cudaEventCreate(&start));
+    CUDA_CHECK(cudaEventCreate(&stop));
 
     // measured runs
     for (size_t i = 0; i < N_MEASURED; i++) {
     	cudaEventRecord(start, 0);
-	launch_sgemm_kernel(M1_device, M2_device, M3_device, d1, d2);
+	kernel_sgemm_launch(M1_device, M2_device, M3_device, d1, d2);
     	cudaEventRecord(stop, 0);
     	cudaEventSynchronize(stop); // important since gpu is async
     	float ms = 0;
     	cudaEventElapsedTime(&ms, start, stop);
     	time_ms[i] = ms;
     }
+    
+    // copy back to host to verify
+    cudaMemcpy(M3_host, M3_device, (size_t) (d1 * d3 * sizeof *M3_device), cudaMemcpyDeviceToHost);
+
+    // cleanup
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    cudaFree(M1_device);
+    cudaFree(M2_device);
+    cudaFree(M3_device);
 
 }
 
@@ -181,8 +195,8 @@ void matmul_cuBLAS(float* M1_host, float* M2_host, float* M3_host, size_t d1, si
     cudaFree(M3_device);
 }
 
-void matmul_cuTENSOR(float* M1_host, const float* M2_host, float* M3_host, size_t d1, size_t d2, size_t d3, double* time_ms)
-{
+void matmul_cuTENSOR(float* M1_host, const float* M2_host, float* M3_host, size_t d1, size_t d2, size_t d3, double* time_ms) {
+
     // cuda: device memory allocation
     float* M1_device;
     float* M2_device;
@@ -203,7 +217,7 @@ void matmul_cuTENSOR(float* M1_host, const float* M2_host, float* M3_host, size_
     CUTENSOR_CHECK(cutensorCreate(&handle));
 
     // cutensor: tensor descriptors initialization
-    cutensorTensorDescriptor_t descA, descB, descC, descD;
+    cutensorTensorDescriptor_t descA, descB, descC;
     uint32_t rank = 2;
     uint32_t alignment = 256;
     const int64_t extA[2] = { d1, d2 };
@@ -276,8 +290,7 @@ void matmul_cuTENSOR(float* M1_host, const float* M2_host, float* M3_host, size_
    CUTENSOR_CHECK(cutensorDestroy(handle));
 }
 
-void matmul_CUTLASS(float* M1_host, const float* M2_host, float* M3_host, size_t d1, size_t d2, size_t d3, double* time_ms)
-{
+void matmul_CUTLASS(float* M1_host, const float* M2_host, float* M3_host, size_t d1, size_t d2, size_t d3, double* time_ms) {
     // cuda: device memory allocation
     float* M1_device;
     float* M2_device;
@@ -358,8 +371,8 @@ int main(void) {
     for (size_t j = i; j < ARRAY_LENGTH(matrix_sizes); j++) {
 
         size_t d1 = matrix_sizes[i];
-        //size_t d2 = matrix_sizes[j];
-	size_t d2 = 6000;
+        size_t d2 = matrix_sizes[j];
+	//size_t d2 = 6000;
         size_t d3 = d1;
 
         float* M1_host = calloc((size_t) d1 * d2, (size_t) sizeof *M1_host);
@@ -405,10 +418,19 @@ int main(void) {
         }
 	stats_calculate(cpu_ms, d1, d2, d3, "BLAS");
 
+	// CUDA
+	printf("CUDA:\n");
+        memset(M3_host, 0, d1 * (size_t) d3 * sizeof *M3_host);
+        double gpu_ms[N_MEASURED];
+       	matmul_CUDA(M1_host, M2_host, M3_host, d1, d2, d3, gpu_ms);
+	stats_calculate(gpu_ms, d1, d2, d3, "CUDA");
+
 	// cuBLAS
 	printf("cuBLAS:\n");
         memset(M3_host, 0, d1 * (size_t) d3 * sizeof *M3_host);
-        double gpu_ms[N_MEASURED];
+	for (size_t i = 0; i < N_MEASURED; i++) {
+	    gpu_ms[i] = 0;
+	}
        	matmul_cuBLAS(M1_host, M2_host, M3_host, d1, d2, d3, gpu_ms);
 	stats_calculate(gpu_ms, d1, d2, d3, "cuBLAS");
 

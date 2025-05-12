@@ -19,5 +19,5 @@ cudaError_t cutlass_sgemm_nn(
 }
 #endif
 
-#endif // CUTLASS_GEMM_H
+#endif // CUTLASS_SGEMM_H
 
