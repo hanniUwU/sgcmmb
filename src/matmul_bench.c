@@ -43,7 +43,7 @@
 #else
     #include <time.h>
 
-    static double get_time(void) {
+    double get_time(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
     return ts.tv_sec + ts.tv_nsec * 1e-9;
