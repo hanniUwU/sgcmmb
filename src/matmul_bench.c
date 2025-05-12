@@ -52,10 +52,10 @@
 
 //static const size_t matrix_sizes[] = {1<<1, 1<<2, 1<<3, 1<<4, 1<<5, 1<<6, 1<<7, 1<<8, 1<<9, 1<<10, 1<<11, 1<<12, 1<<13, 1<<14};
 //static const size_t matrix_sizes[] = {1<<10, 1<<11, 1<<12, 1<<13, 1<<14};
-static const size_t matrix_sizes[] = {1<<2};
+static const size_t matrix_sizes[] = {1<<3};
 //static const size_t matrix_sizes[] = {1<<12};
 //static const size_t matrix_sizes[] = {54, 150, 1200, 5596};
-#define BLOCKSIZE 64
+#define CPUBLOCKSIZE 64
 #define N_MEASURED 10
 
 void random_matrix(float* M_host, size_t d1, size_t d2) {
@@ -88,9 +88,9 @@ void matmul_naive(float* M1_host, float* M2_host, float* M3_host, size_t d1, siz
 
 void matmul_cached(float* M1_host, float* M2_host, float* M3_host, int d1, int d2, int d3) {
 
-    for (size_t k1 = 0; k1 < d2; k1 += BLOCKSIZE) {
-    for (size_t j1 = 0; j1 < d3; j1 += BLOCKSIZE) {
-        size_t k2 = k1 + BLOCKSIZE, j2 = j1 + BLOCKSIZE;
+    for (size_t k1 = 0; k1 < d2; k1 += CPUBLOCKSIZE) {
+    for (size_t j1 = 0; j1 < d3; j1 += CPUBLOCKSIZE) {
+        size_t k2 = k1 + CPUBLOCKSIZE, j2 = j1 + CPUBLOCKSIZE;
         for (size_t j = j1; j < j2; j++) {
         for (size_t k = k1; k < k2; k++) {
         for (size_t i = 0;  i < d1; i++) {
@@ -365,6 +365,7 @@ void stats_calculate(double* time_ms, size_t d1, size_t d2, size_t d3, char* mod
 }
 
 int main(void) {
+    int output = 0;
     srand(42);
 
     for (size_t i = 0; i < ARRAY_LENGTH(matrix_sizes); i++) {
@@ -389,7 +390,7 @@ int main(void) {
 	double cpu_ms[N_MEASURED] = {};
         double t0, t1;
 
-	/*
+	
         // NAIVE
 	printf("NAIVE:\n");
         memset(M3_host, 0, d1 * (size_t) d3 * sizeof *M3_host);
@@ -400,8 +401,9 @@ int main(void) {
             t1 = get_time();
             cpu_ms[i] = (t1 - t0) * 1e3;
         }
+	if (output) printM_f(M3_host, "NAIVE", d1, d2);
 	stats_calculate(cpu_ms, d1, d2, d3, "NAIVE");
-	*/
+	
         // BLAS
 	printf("BLAS:\n");
         memset(M3_host, 0, d1 * (size_t) d3 * sizeof *M3_host);
@@ -416,6 +418,7 @@ int main(void) {
             t1 = get_time();
             cpu_ms[i] = (t1 - t0) * 1e3;
         }
+	if (output) printM_f(M3_host, "BLAS", d1, d2);
 	stats_calculate(cpu_ms, d1, d2, d3, "BLAS");
 
 	// CUDA
@@ -423,6 +426,7 @@ int main(void) {
         memset(M3_host, 0, d1 * (size_t) d3 * sizeof *M3_host);
         double gpu_ms[N_MEASURED];
        	matmul_CUDA(M1_host, M2_host, M3_host, d1, d2, d3, gpu_ms);
+	if (output) printM_f(M3_host, "CUDA", d1, d2);
 	stats_calculate(gpu_ms, d1, d2, d3, "CUDA");
 
 	// cuBLAS
@@ -432,6 +436,7 @@ int main(void) {
 	    gpu_ms[i] = 0;
 	}
        	matmul_cuBLAS(M1_host, M2_host, M3_host, d1, d2, d3, gpu_ms);
+	if (output) printM_f(M3_host, "cuBLAS", d1, d2);
 	stats_calculate(gpu_ms, d1, d2, d3, "cuBLAS");
 
         // cuTENSOR
@@ -441,6 +446,7 @@ int main(void) {
 	    gpu_ms[i] = 0;
 	}
         matmul_cuTENSOR(M1_host, M2_host, M3_host, d1, d2, d3, gpu_ms);
+	if (output) printM_f(M3_host, "cuTENSOR", d1, d2);
 	stats_calculate(gpu_ms, d1, d2, d3, "cuTENSOR");
 
 	// CUTLASS
@@ -450,6 +456,7 @@ int main(void) {
 	    gpu_ms[i] = 0;
 	}
         matmul_CUTLASS(M1_host, M2_host, M3_host, d1, d2, d3, gpu_ms);
+	if (output) printM_f(M3_host, "CUTLASS", d1, d2);
 	stats_calculate(gpu_ms, d1, d2, d3, "CUTLASS");
 
         free(M1_host);
