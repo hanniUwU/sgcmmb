@@ -11,7 +11,7 @@ __global__ void kernel_sgemm(float* M1_device, float* M2_device, float* M3_devic
 	float M3_value = 0;
 	int row = blockIdx.y * blockDim.y + threadIdx.y;
 	int col = blockIdx.x * blockDim.x + threadIdx.x;
-	for (size_t k = 0; k < ; k++) {
+	for (size_t k = 0; k < d1; k++) {
 		M3_value += M1[row + k*d1] * M2[k + col*d2];
 	}
 	M3_device[row + col*d1] = M3_value;
