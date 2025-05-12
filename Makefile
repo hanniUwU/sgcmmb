@@ -23,9 +23,11 @@ LDFLAGS         := -L$(CUDA_PATH)/lib64 -lcudart -lcublas \
 
 TARGET          := matmul_bench
 SRCS_C          := $(SRC_DIR)/matmul_bench.c
-SRCS_CU         := $(SRC_DIR)/cutlass_gemm.cu
+SRCS_CU         := $(SRC_DIR)/cutlass_sgemm.cu \
+		   $(SRC_DIR)/cuda_sgemm.cu
 OBJS            := $(OBJ_DIR)/matmul_bench.o \
-                   $(OBJ_DIR)/cutlass_gemm.o
+                   $(OBJ_DIR)/cutlass_sgemm.o \
+		   $(OBJ_DIR)/cuda_sgemm.o
 BIN_TARGET      := $(BIN_DIR)/$(TARGET)
 
 .SHELLFLAGS := -e -o pipefail -c
