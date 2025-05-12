@@ -9,7 +9,8 @@
 #include <sys/stat.h>
 #include <math.h>
 
-#include "cutlass_gemm.h"
+#include "cuda_sgemm.h"
+#include "cutlass_sgemm.h"
 
 #define ARRAY_LENGTH(x) (sizeof(x) / sizeof(x[0]))
 
@@ -51,9 +52,9 @@
 
 //static const size_t matrix_sizes[] = {1<<1, 1<<2, 1<<3, 1<<4, 1<<5, 1<<6, 1<<7, 1<<8, 1<<9, 1<<10, 1<<11, 1<<12, 1<<13, 1<<14};
 //static const size_t matrix_sizes[] = {1<<10, 1<<11, 1<<12, 1<<13, 1<<14};
-//static const size_t matrix_sizes[] = {1<<2};
+static const size_t matrix_sizes[] = {1<<2};
 //static const size_t matrix_sizes[] = {1<<12};
-static const size_t matrix_sizes[] = {54, 150, 1200, 5596};
+//static const size_t matrix_sizes[] = {54, 150, 1200, 5596};
 #define BLOCKSIZE 64
 #define N_MEASURED 10
 
@@ -105,6 +106,36 @@ extern void sgemm_(const char*, const char*, const unsigned*, const unsigned*,
 void matmul_BLAS(float* M1_host, float* M2_host, float* M3_host, unsigned d1, unsigned d2, unsigned d3) {
     const float alpha = 1.0f, beta = 1.0f;
     sgemm_("N", "N", &d1, &d3, &d2, &alpha, M1_host, &d1, M2_host, &d2, &beta, M3_host, &d1);
+}
+
+void matmul_CUDA(float* M1_host, float* M2_host, float* M3_host, size_t d1, size_t d2, size_t d3, double time_ms[]) {
+
+    // cuda: device memory allocation
+    float* M1_device;
+    float* M2_device;
+    float* M3_device;
+    size_t szA = d1 * d2 * sizeof(float);
+    size_t szB = d2 * d3 * sizeof(float);
+    size_t szC = d1 * d3 * sizeof(float);
+
+    CUDA_CHECK(cudaMalloc((void**) &M1_device, szA));
+    CUDA_CHECK(cudaMalloc((void**) &M2_device, szB));
+    CUDA_CHECK(cudaMalloc((void**) &M3_device, szC));
+    CUDA_CHECK(cudaMemcpy(M1_device, M1_host, szA, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(M2_device, M2_host, szB, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemset(M3_device, 0, szC));
+
+    // measured runs
+    for (size_t i = 0; i < N_MEASURED; i++) {
+    	cudaEventRecord(start, 0);
+	launch_sgemm_kernel(M1_device, M2_device, M3_device, d1, d2);
+    	cudaEventRecord(stop, 0);
+    	cudaEventSynchronize(stop); // important since gpu is async
+    	float ms = 0;
+    	cudaEventElapsedTime(&ms, start, stop);
+    	time_ms[i] = ms;
+    }
+
 }
 
 void matmul_cuBLAS(float* M1_host, float* M2_host, float* M3_host, size_t d1, size_t d2, size_t d3, double time_ms[]) {
